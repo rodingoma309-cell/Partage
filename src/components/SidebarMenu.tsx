@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   X, 
@@ -10,7 +10,12 @@ import {
   Coffee, 
   Wine, 
   Users, 
-  Coins 
+  Coins,
+  Upload,
+  QrCode,
+  Link,
+  MessageSquare,
+  Share2
 } from "lucide-react";
 import { ReceiptState } from "../types";
 import { PRESETS, Preset } from "../data/presets";
@@ -34,6 +39,7 @@ export default function SidebarMenu({
   onTriggerSplash,
   darkMode = true,
 }: SidebarMenuProps) {
+  const [qrMode, setQrMode] = useState<"app" | "summary">("app");
 
   const getPresetIcon = (iconName: string) => {
     switch (iconName) {
@@ -47,6 +53,43 @@ export default function SidebarMenu({
         return <Receipt className="w-5 h-5 text-indigo-500" />;
     }
   };
+
+  // Build text summary of receipt to share via QR Code
+  const getReceiptSummaryText = () => {
+    let summary = `Partag'Add - Addition :\n`;
+    const isUSD = currentState.primaryCurrency === "USD";
+    const currencySymbol = isUSD ? "$" : "FC";
+    
+    if (currentState.people.length === 0) {
+      return "Partag'Add - Aucune addition pour le moment.";
+    }
+
+    currentState.people.forEach(p => {
+      let subtotal = 0;
+      currentState.items.forEach(item => {
+        if (item.assignedTo.includes(p.id)) {
+          subtotal += item.price / item.assignedTo.length;
+        }
+      });
+      const taxShare = currentState.people.length > 0 ? currentState.tax / currentState.people.length : 0;
+      const tipShare = currentState.people.length > 0 
+        ? (currentState.tipType === "percentage" ? (subtotal * currentState.tip / 100) : currentState.tip / currentState.people.length)
+        : 0;
+      const total = subtotal + taxShare + tipShare;
+      
+      summary += `- ${p.name} : ${total.toFixed(2)} ${currencySymbol}\n`;
+    });
+    return summary;
+  };
+
+  const getQRData = () => {
+    if (qrMode === "app") {
+      return window.location.href;
+    }
+    return getReceiptSummaryText();
+  };
+
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(getQRData())}`;
 
   return (
     <AnimatePresence>
@@ -102,11 +145,27 @@ export default function SidebarMenu({
             {/* Scrollable menu contents */}
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
               
-              {/* Navigation Action section */}
-              <div className="space-y-2">
+              {/* Direct Actions: Scanner & Home */}
+              <div className="space-y-3">
                 <span className={`text-[10px] font-bold tracking-wider uppercase ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
-                  Navigation générale
+                  Actions Rapides
                 </span>
+
+                {/* Import Ticket Scanner Button directly inside sidebar */}
+                <button
+                  onClick={() => {
+                    document.getElementById("receipt-file-input")?.click();
+                    onClose();
+                  }}
+                  className="w-full flex items-center space-x-3 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-lg shadow-indigo-600/10"
+                >
+                  <Upload className="w-4.5 h-4.5" />
+                  <div className="text-left">
+                    <p className="font-bold">📸 Importer & Scanner un Ticket</p>
+                    <p className="text-[9px] text-indigo-200 font-normal">Extraction magique par IA</p>
+                  </div>
+                </button>
+
                 <button
                   onClick={() => {
                     onTriggerSplash();
@@ -126,6 +185,60 @@ export default function SidebarMenu({
                 </button>
               </div>
 
+              {/* QR Code Sharing Card */}
+              <div className={`p-4 rounded-xl border space-y-3.5 transition-colors duration-300 ${
+                darkMode ? "bg-slate-950/40 border-slate-800" : "bg-slate-50 border-slate-200"
+              }`}>
+                <div className="flex items-center space-x-2">
+                  <QrCode className="w-4 h-4 text-indigo-400" />
+                  <span className={`text-[10px] font-bold tracking-wider uppercase ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                    Partage QR Code
+                  </span>
+                </div>
+
+                <div className="flex rounded-lg p-1 border bg-slate-950/40 border-slate-800">
+                  <button
+                    onClick={() => setQrMode("app")}
+                    className={`flex-1 py-1 px-2 text-[10px] font-semibold rounded-md transition-all cursor-pointer ${
+                      qrMode === "app" 
+                        ? "bg-indigo-600 text-white shadow" 
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Lien App
+                  </button>
+                  <button
+                    onClick={() => setQrMode("summary")}
+                    className={`flex-1 py-1 px-2 text-[10px] font-semibold rounded-md transition-all cursor-pointer ${
+                      qrMode === "summary" 
+                        ? "bg-indigo-600 text-white shadow" 
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Addition
+                  </button>
+                </div>
+
+                {/* QR Display */}
+                <div className="flex flex-col items-center justify-center space-y-2 bg-white p-3.5 rounded-xl border border-slate-150">
+                  <img
+                    src={qrImageUrl}
+                    alt="Partag'Add QR Code"
+                    className="w-40 h-40 object-contain rounded"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="text-[9px] text-slate-500 font-mono text-center">
+                    {qrMode === "app" ? "Scannez pour ouvrir l'appli mobile" : "Scannez pour récupérer l'addition"}
+                  </span>
+                </div>
+
+                <p className={`text-[10px] text-center leading-normal ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                  {qrMode === "app" 
+                    ? "Ouvrez l'appli sur votre mobile pour tester la webcam !" 
+                    : "Partagez la répartition des coûts avec votre tablée."}
+                </p>
+              </div>
+
               {/* Presets - Parcourir l'App section */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -133,12 +246,9 @@ export default function SidebarMenu({
                     Exemples à parcourir
                   </span>
                   <span className="text-[9px] font-mono bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded border border-indigo-500/15">
-                    Mode d'emploi rapide
+                    Modèle rapide
                   </span>
                 </div>
-                <p className={`text-[10px] leading-relaxed ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                  Sélectionnez un ticket pré-rempli pour découvrir instantanément comment l'algorithme calcule les taxes, pourboires et partages de coûts :
-                </p>
 
                 <div className="space-y-2.5">
                   {PRESETS.map((preset) => {

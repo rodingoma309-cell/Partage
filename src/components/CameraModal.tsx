@@ -221,12 +221,26 @@ export default function CameraModal({
             )}
           </div>
 
-          {/* Subtext info */}
-          <p className={`text-xs text-center max-w-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-            {capturedImage 
-              ? "Parfait ! Enregistrez ou reprenez la photo si nécessaire." 
-              : "Cadrez le visage de votre ami dans le cercle pour créer son avatar personnalisé !"}
-          </p>
+          {/* Subtext info & iframe warning */}
+          <div className="text-center space-y-3 max-w-xs">
+            <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+              {capturedImage 
+                ? "Parfait ! Enregistrez ou reprenez la photo si nécessaire." 
+                : "Cadrez le visage de votre ami dans le cercle pour créer son avatar personnalisé !"}
+            </p>
+            
+            {/* Helpful warning about iframe context */}
+            <div className={`p-2.5 rounded-lg border text-[10px] text-left space-y-1 ${
+              darkMode ? "bg-indigo-950/20 border-indigo-500/20 text-indigo-300" : "bg-indigo-50 border-indigo-100 text-indigo-800"
+            }`}>
+              <p className="font-bold">💡 Problème de caméra / webcam ?</p>
+              <p className="leading-normal">
+                Si la caméra ne démarre pas dans l'aperçu intégré (bloqué par la sécurité de l'iframe), 
+                cliquez sur l'icône d'ouverture en haut à droite pour <strong>ouvrir l'application dans un nouvel onglet</strong>. 
+                La caméra fonctionnera alors parfaitement !
+              </p>
+            </div>
+          </div>
 
           {/* Controls */}
           <div className="flex items-center justify-center space-x-3 w-full">

@@ -9,7 +9,9 @@ import {
   Users,
   CheckCircle,
   Loader2,
-  Info
+  Info,
+  Mic,
+  MicOff
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ReceiptState, Message, Person } from "../types";
@@ -52,6 +54,65 @@ export default function ChatPanel({
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        setSpeechSupported(true);
+      }
+    }
+  }, []);
+
+  const toggleSpeech = () => {
+    if (!speechSupported) return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = "fr-FR";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        const speechResult = event.results[0][0].transcript;
+        if (speechResult) {
+          setInput(prev => prev ? `${prev} ${speechResult}` : speechResult);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.error("Failed to start speech recognition:", err);
+      setIsListening(false);
+    }
+  };
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll chat to bottom
@@ -413,6 +474,34 @@ export default function ChatPanel({
                 : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white"
             }`}
           />
+          {speechSupported && (
+            <button
+              type="button"
+              onClick={toggleSpeech}
+              disabled={isLoading || isParsingReceipt}
+              className={`p-3 rounded-xl transition-all cursor-pointer relative shrink-0 ${
+                isListening
+                  ? "bg-rose-600 hover:bg-rose-700 text-white"
+                  : darkMode
+                  ? "bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
+                  : "bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200"
+              }`}
+              title={isListening ? "Arrêter l'écoute" : "Dicter votre commande vocale (ex: 'Ajoute 5% de taxe')"}
+              id="btn-voice-recognition"
+            >
+              {isListening ? (
+                <MicOff className="w-4 h-4" />
+              ) : (
+                <Mic className="w-4 h-4 animate-pulse [animation-duration:3s]" />
+              )}
+              {isListening && (
+                <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                </span>
+              )}
+            </button>
+          )}
           <button
             id="btn-send-message"
             type="submit"
